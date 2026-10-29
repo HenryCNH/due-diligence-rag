@@ -1,0 +1,20 @@
+# Virtual environment
+.venv/
+
+# Environment variables
+.env
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Source and parsed documents
+data/raw/*
+data/parsed/*
+
+# Preserve empty directories
+!data/raw/.gitkeep
+!data/parsed/.gitkeep
