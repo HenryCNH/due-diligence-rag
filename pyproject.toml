@@ -13,6 +13,7 @@ dependencies = [
     "pydantic-settings>=2.16.1",
     "rich>=15.0.0",
     "structlog>=26.1.0",
+    "transformers>=5.21.0",
     "typer>=0.26.8",
 ]
 
