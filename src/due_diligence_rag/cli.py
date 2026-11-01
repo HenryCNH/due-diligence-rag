@@ -7,6 +7,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from due_diligence_rag.config import get_settings
+from due_diligence_rag.ingestion.chunk_loader import load_chunks
 from due_diligence_rag.ingestion.chunker import (
     DoclingDocumentChunker,
 )
@@ -17,6 +18,8 @@ from due_diligence_rag.ingestion.parser import DoclingPDFParser
 from due_diligence_rag.ingestion.pipeline import (
     PDFIngestionPipeline,
 )
+from due_diligence_rag.retrieval.dense_retriever import DenseRetriever
+from due_diligence_rag.retrieval.factory import create_dense_components
 
 app = typer.Typer(
     name="diligence-rag",
@@ -129,7 +132,7 @@ def inspect_chunks(
                 "",
             )
 
-            title = f"Chunk {index} | " f"tokens={token_count} | " f"pages={pages}"
+            title = f"Chunk {index} | tokens={token_count} | pages={pages}"
 
             console.print(
                 Panel(
@@ -143,6 +146,114 @@ def inspect_chunks(
                     title=title,
                 )
             )
+
+
+@app.command()
+def index(
+    chunks_path: Annotated[
+        Path,
+        typer.Argument(help="Path to the chunks.jsonl file to index."),
+    ],
+) -> None:
+    """Create dense embeddings and store them in Qdrant."""
+
+    settings = get_settings()
+    chunks = load_chunks(chunks_path)
+
+    embedding_service, vector_store = create_dense_components(settings)
+
+    console.print(
+        f"Embedding {len(chunks)} chunks on [bold]{embedding_service.device}[/bold]..."
+    )
+
+    embeddings = embedding_service.embed_documents(
+        [chunk.contextualized_text for chunk in chunks]
+    )
+
+    vector_store.upsert_chunks(
+        chunks=chunks,
+        embeddings=embeddings,
+    )
+
+    vector_store.client.close()
+
+    console.print(
+        Panel.fit(
+            "\n".join(
+                [
+                    "[bold green]Dense indexing completed[/bold green]",
+                    f"Chunks indexed: {len(chunks)}",
+                    f"Model: {embedding_service.model_name}",
+                    f"Device: {embedding_service.device}",
+                    f"Dimension: {embedding_service.dimension}",
+                    f"Collection: {settings.qdrant_collection_name}",
+                ]
+            ),
+            title="Index result",
+        )
+    )
+
+
+@app.command()
+def search(
+    query: Annotated[
+        str,
+        typer.Argument(help="Question used for semantic retrieval."),
+    ],
+    limit: Annotated[
+        int,
+        typer.Option(
+            "--limit",
+            "-n",
+            min=1,
+            max=50,
+            help="Maximum number of chunks to return.",
+        ),
+    ] = 5,
+) -> None:
+    """Search indexed chunks using dense retrieval."""
+
+    settings = get_settings()
+
+    embedding_service, vector_store = create_dense_components(settings)
+
+    retriever = DenseRetriever(
+        embedding_service=embedding_service,
+        vector_store=vector_store,
+    )
+
+    results = retriever.retrieve(
+        query,
+        limit=limit,
+    )
+
+    if not results:
+        console.print("[yellow]No results found.[/yellow]")
+        vector_store.client.close()
+        return
+
+    for rank, result in enumerate(results, start=1):
+        title = f"Rank {rank} | score={result.score:.4f} | pages={result.page_numbers}"
+
+        body = "\n".join(
+            [
+                f"File: {result.filename}",
+                f"Headings: {' > '.join(result.headings)}",
+                f"Chunk ID: {result.chunk_id}",
+                "",
+                result.text,
+            ]
+        )
+
+        console.print(
+            Panel(
+                body,
+                title=title,
+                border_style="cyan",
+            )
+        )
+
+    vector_store.client.close()
 
 
 if __name__ == "__main__":

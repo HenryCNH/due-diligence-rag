@@ -52,3 +52,19 @@ class DocumentChunk(BaseModel):
 
     parser_name: str = "docling"
     chunker_name: str = "docling_hybrid"
+
+
+class RetrievalResult(BaseModel):
+    """One chunk returned by the retrieval pipeline."""
+
+    chunk_id: str
+    document_id: str
+    filename: str
+
+    score: float
+    text: str
+    contextualized_text: str
+
+    headings: list[str] = Field(default_factory=list)
+    page_numbers: list[int] = Field(default_factory=list)
+    content_labels: list[str] = Field(default_factory=list)

@@ -20,3 +20,6 @@ data/parsed/*
 !data/parsed/.gitkeep
 data/raw/*
 data/parsed/*
+
+# Local Qdrant database
+data/qdrant/
