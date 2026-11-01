@@ -11,7 +11,7 @@ from docling.document_converter import (
     PdfFormatOption,
 )
 
-pdf_path = r"C:\Users\ngaih\OneDrive\Desktop\CUHK_Cloud\Self_Study\due-diligence-rag\data\raw\261012_CBI_Employment_Screening_EN.pdf"
+pdf_path = r"E:\personal_project\due-diligence-rag\data\raw\261012_CBI_Employment_Screening_EN.pdf"
 
 
 pdf_path = Path(pdf_path)
